@@ -1,23 +1,36 @@
-﻿using PizzApp.Models;
+﻿using Newtonsoft.Json;
+using PizzApp.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Xamarin.Forms;
 
 namespace PizzApp
 {
     public partial class MainPage : ContentPage
     {
-        List<Pizza> listPizza;
+        private List<Pizza> listPizza;
+
+        // URI du fichier JSON sur Google Drive
+        private const string uri = "https://drive.google.com/uc?export=download&id=1Tj9_BVjKvveyELjoVa8KJT96v5-qzUCx";
+
         public MainPage()
         {
             InitializeComponent();
 
+            
             listPizza = new List<Pizza>();
 
+            #region MockupData
+            /*
             listPizza.Add(new Pizza 
             { 
                 Nom = "Végétarienne", 
@@ -53,8 +66,50 @@ namespace PizzApp
                 Ingredients = new string[] { "Tomate", "Roblochon", "Roquefort", "Gruyère", "Olives", "Parmesan","Brie de Maux", "Mozarella" },
                 ImageUrl = "https://static.thiriet.com/data/common_public/gallery_images/site/18756/18774/50361,pizza_pate_fine_4_fromages.jpg"
             });
+            */
+            #endregion                    
 
-            PizzasView.ItemsSource = listPizza;
+            // Définition d'un WebClient
+            using (var webClient = new WebClient())
+            {
+                try
+                {
+                    ai.IsRunning = true;
+                    aiLayout.IsVisible = true;
+
+                    // Méthode de retour lorsque le téléchargement du fichier est terminé
+                    webClient.DownloadStringCompleted += (sender, e) =>
+                    {
+                        // Désérialisation du JSON
+                        listPizza = JsonConvert.DeserializeObject<List<Pizza>>(e.Result);
+
+                        // On repasse sur le thread de la main page pour afficher les données
+                        Device.BeginInvokeOnMainThread(() =>
+                        {
+                            PizzasView.ItemsSource = listPizza;
+                            aiLayout.IsVisible = false;
+                            ai.IsRunning = false;
+                        });
+                        
+                    };
+
+                    // téléchargement du fichier Json en asynchrone
+                    webClient.DownloadStringAsync(new Uri(uri));
+
+                }
+                catch(Exception ex)
+                {
+                    // On repasse sur le thread de la main page pour afficher l'erreur
+                    Device.BeginInvokeOnMainThread(() =>
+                    {
+                        DisplayAlert("Erreur", "Une erreur s'est produite : " + ex.Message, "Ok");
+                    });
+
+                    // On ternime l'exécution
+                    return;
+                }
+            }                          
+
         }
     }
 }
