@@ -22,7 +22,7 @@
         <StackLayout x:Name="mainLayout"
                     AbsoluteLayout.LayoutBounds="0,0,1,1"
                     AbsoluteLayout.LayoutFlags="All" >
-            <ListView x:Name="PizzasView"  ItemsSource="{Binding listPizza}" RowHeight="100">
+            <ListView x:Name="PizzasView"  ItemsSource="{Binding listPizza}" RowHeight="100" IsPullToRefreshEnabled="True">
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <ViewCell>

@@ -17,17 +17,11 @@ namespace PizzApp
 {
     public partial class MainPage : ContentPage
     {
-        private List<Pizza> listPizza;
-
-        // URI du fichier JSON sur Google Drive
-        private const string uri = "https://drive.google.com/uc?export=download&id=1Tj9_BVjKvveyELjoVa8KJT96v5-qzUCx";
 
         public MainPage()
         {
             InitializeComponent();
 
-            
-            listPizza = new List<Pizza>();
 
             #region MockupData
             /*
@@ -69,47 +63,72 @@ namespace PizzApp
             */
             #endregion                    
 
+            ai.IsRunning = true;
+            aiLayout.IsVisible = true;
+
+            PizzasView.RefreshCommand = new Command((obj) =>
+            {
+                DownloadData(pizzas =>
+                {
+                    PizzasView.ItemsSource = pizzas;
+                    PizzasView.IsRefreshing = false;
+                });
+
+            });
+
+            DownloadData(pizzas =>
+            {
+                PizzasView.ItemsSource = pizzas;
+                aiLayout.IsVisible = false;
+                ai.IsRunning = false;
+            });
+
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="action"></param>
+        private void DownloadData(Action<List<Pizza>> action)
+        {
+            // URI du fichier JSON sur Google Drive
+            const string uri = "https://drive.google.com/uc?export=download&id=1Tj9_BVjKvveyELjoVa8KJT96v5-qzUCx";
+
             // Définition d'un WebClient
             using (var webClient = new WebClient())
             {
-                try
-                {
-                    ai.IsRunning = true;
-                    aiLayout.IsVisible = true;
-
-                    // Méthode de retour lorsque le téléchargement du fichier est terminé
-                    webClient.DownloadStringCompleted += (sender, e) =>
+                // Méthode de retour lorsque le téléchargement du fichier est terminé
+                webClient.DownloadStringCompleted += (sender, e) =>
+                {                
+                    try
                     {
                         // Désérialisation du JSON
-                        listPizza = JsonConvert.DeserializeObject<List<Pizza>>(e.Result);
+                        List<Pizza> listPizza = JsonConvert.DeserializeObject<List<Pizza>>(e.Result);
+                        listPizza = listPizza.OrderBy(x => x.Prix).ToList();
 
                         // On repasse sur le thread de la main page pour afficher les données
                         Device.BeginInvokeOnMainThread(() =>
                         {
-                            PizzasView.ItemsSource = listPizza;
-                            aiLayout.IsVisible = false;
-                            ai.IsRunning = false;
+                            action.Invoke(listPizza);
                         });
-                        
-                    };
 
-                    // téléchargement du fichier Json en asynchrone
-                    webClient.DownloadStringAsync(new Uri(uri));
-
-                }
-                catch(Exception ex)
-                {
-                    // On repasse sur le thread de la main page pour afficher l'erreur
-                    Device.BeginInvokeOnMainThread(() =>
+                    }
+                    catch (Exception ex)
                     {
-                        DisplayAlert("Erreur", "Une erreur s'est produite : " + ex.Message, "Ok");
-                    });
+                        // On repasse sur le thread de la main page pour afficher l'erreur
+                        Device.BeginInvokeOnMainThread(() =>
+                        {
+                            DisplayAlert("Erreur", "Une erreur s'est produite : " + ex.Message, "Ok");
+                            action.Invoke(null);
+                        });
 
-                    // On ternime l'exécution
-                    return;
-                }
-            }                          
+                    }
 
+                };
+
+                // téléchargement du fichier Json en asynchrone
+                webClient.DownloadStringAsync(new Uri(uri));
+            }
         }
     }
 }
